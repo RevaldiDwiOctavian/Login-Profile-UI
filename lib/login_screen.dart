@@ -1,6 +1,10 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:http/http.dart' as http;
 
 import 'page/profile_page.dart';
 
@@ -17,20 +21,35 @@ class _LoginScreenState extends State<LoginScreen> {
   String textUsername = "";
   String textPassword = "";
 
-  void login() {
+  late Timer _timer;
+
+  void login() async{
     if (textUsername == "" && textPassword == "") {
       Fluttertoast.showToast(
         msg: "password and username can't be empty",
         toastLength: Toast.LENGTH_SHORT,
       );
-    } else if (textUsername == "RevDO" &&
-        textPassword == "revaldidwioctavian") {
+    } 
+    
+    showLoaderDialog(context, 10);
+    final response = await http.post(
+      Uri.parse("http://rismayana.diary-project.com/login.php"),
+      body: jsonEncode({"username": textUsername, "password": textPassword}));
+      int statCode = response.statusCode;
+
+
+    if (statCode == 200) {
+      String dataLogin = response.body;
+      final data = jsonDecode(dataLogin);
+
+      String resStatus = data["username"];
+      Navigator.pop(context);
       showDialog(
           context: context,
           builder: (context) {
             return AlertDialog(
               title: Text("Login Success"),
-              content: Text("Welcome Revaldi"),
+              content: Text("Welcome $resStatus"),
               actions: <Widget>[
                 TextButton(
                   child: Text("OK"),
@@ -49,11 +68,48 @@ class _LoginScreenState extends State<LoginScreen> {
       // Route route = MaterialPageRoute(builder: (context) => ProfilePage());
       // Navigator.push(context, route);
     } else {
-      Fluttertoast.showToast(
-        msg: "username or password is wrong",
-        toastLength: Toast.LENGTH_SHORT,
-      );
+      showDialog(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: Text("Login Failed"),
+              content: Text("Username or Password Wrong!"),
+              actions: <Widget>[
+                TextButton(
+                  child: Text("OK"),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          });
     }
+  }
+
+  showLoaderDialog(BuildContext context, int _period) {
+    AlertDialog alert = AlertDialog(
+      content: Row(
+        children: [
+          const CircularProgressIndicator(),
+          Container(
+              margin: const EdgeInsets.only(left: 7),
+              child: const Text("Loading...")),
+        ],
+      ),
+    );
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+      builder: (BuildContext context) {
+        _timer = Timer(Duration(seconds: _period), () {
+          Navigator.of(context).pop();
+        });
+        return alert;
+      },
+    ).then((value) => {
+          if (_timer.isActive) {_timer.cancel()}
+        });
   }
 
   @override
